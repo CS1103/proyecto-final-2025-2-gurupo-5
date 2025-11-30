@@ -158,6 +158,111 @@ namespace utec::neural_network {
         }
     };
 
+    /**
+     * Softmax Cross Entropy Loss Function (para clasificación multiclase)
+     * Combina Softmax + Cross Entropy en una operación estable numéricamente
+     *
+     * Input: Logits (salidas raw de la red, sin activación)
+     * Output: Probabilidades (después de Softmax internamente)
+     * Loss: -sum(y_true * log(softmax(y_pred)))
+     */
+    template<typename T>
+    class SoftmaxCrossEntropyLoss final : public ILoss<T, 2> {
+    private:
+        using Tensor2 = Tensor<T, 2>;
+        Tensor2 y_pred;     // Logits (raw scores)
+        Tensor2 y_true;     // One-hot encoded labels
+        Tensor2 y_softmax;  // Softmax probabilities (cache)
+
+    public:
+        /**
+         * Constructor
+         * @param y_prediction Logits tensor (raw scores, NO probabilities)
+         * @param y_true One-hot encoded labels
+         */
+        SoftmaxCrossEntropyLoss(const Tensor2& y_prediction, const Tensor2& y_true)
+            : y_pred(y_prediction), y_true(y_true)
+        {
+            if (y_pred.shape() != y_true.shape()) {
+                throw std::invalid_argument("Prediction and target shapes must match");
+            }
+
+            // Compute softmax probabilities
+            const size_t batch_size = y_pred.shape()[0];
+            const size_t num_classes = y_pred.shape()[1];
+
+            y_softmax = Tensor2(batch_size, num_classes);
+
+            // Compute softmax for each sample in batch
+            for (size_t i = 0; i < batch_size; ++i) {
+                // Find max for numerical stability (avoid overflow)
+                T max_logit = y_pred(i, 0);
+                for (size_t j = 1; j < num_classes; ++j) {
+                    max_logit = std::max(max_logit, y_pred(i, j));
+                }
+
+                // Compute exp(x - max) and sum
+                T sum_exp = T{0};
+                for (size_t j = 0; j < num_classes; ++j) {
+                    y_softmax(i, j) = std::exp(y_pred(i, j) - max_logit);
+                    sum_exp += y_softmax(i, j);
+                }
+
+                // Normalize to get probabilities
+                for (size_t j = 0; j < num_classes; ++j) {
+                    y_softmax(i, j) /= sum_exp;
+                }
+            }
+        }
+
+        /**
+         * Compute cross entropy loss
+         * L = -(1/N) * sum(y_true * log(softmax(y_pred)))
+         */
+        T loss() const override {
+            const size_t batch_size = y_pred.shape()[0];
+            const size_t num_classes = y_pred.shape()[1];
+            const T epsilon = std::numeric_limits<T>::epsilon();
+
+            T total_loss = T{0};
+
+            for (size_t i = 0; i < batch_size; ++i) {
+                for (size_t j = 0; j < num_classes; ++j) {
+                    if (y_true(i, j) > T{0.5}) {  // One-hot: only one class is 1.0
+                        // Clamp to avoid log(0)
+                        T prob = std::max(y_softmax(i, j), epsilon);
+                        total_loss += -std::log(prob);
+                        break;  // Only one class is true per sample
+                    }
+                }
+            }
+
+            return total_loss / static_cast<T>(batch_size);
+        }
+
+        /**
+         * Compute gradient
+         * Gradient: (softmax - y_true) / batch_size
+         * La normalizacion por batch_size es CRITICA para estabilidad
+         */
+        Tensor2 loss_gradient() const override {
+            Tensor2 grad(y_pred.shape());
+
+            const size_t batch_size = y_pred.shape()[0];
+            const size_t num_classes = y_pred.shape()[1];
+
+            // Gradient normalizado: (softmax - y_true) / batch_size
+            const T scale = T{1} / static_cast<T>(batch_size);
+            for (size_t i = 0; i < batch_size; ++i) {
+                for (size_t j = 0; j < num_classes; ++j) {
+                    grad(i, j) = (y_softmax(i, j) - y_true(i, j)) * scale;
+                }
+            }
+
+            return grad;
+        }
+    };
+
 } // namespace utec::neural_network
 
 #endif //PROG3_NN_FINAL_PROJECT_V2025_01_LOSS_H

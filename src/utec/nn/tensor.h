@@ -16,6 +16,7 @@
 #include <iostream>
 #include <functional>
 #include <numeric>
+#include <algorithm>
 using namespace std;
 
 namespace utec::algebra {
@@ -562,37 +563,57 @@ namespace utec::algebra {
                 batch_indices[dimension] = temp % shape1[dimension];
                 temp /= shape1[dimension];
             }
-            // Multiplicación de matrices estándar
-            for (size_t i = 0; i < rows1; i++) {
-                for (size_t j = 0; j < cols2; j++) {
-                    T sum = T{};
-                    for (size_t k = 0; k < cols1; k++) {
-                        array<size_t, Rank> idx1;
-                        for (size_t d = 0; d < Rank - 2; d++) {
-                            idx1[d] = batch_indices[d];
+            // Multiplicacion de matrices OPTIMIZADA (sin overhead de threads)
+            // Pre-calcular offsets base para evitar llamadas repetidas a linearize()
+
+            // Para Rank=2 (caso mas comun), usamos acceso directo
+            if constexpr (Rank == 2) {
+                // Acceso directo a memoria para matrices 2D
+                const T* data1 = tensor1.data_.data();
+                const T* data2 = tensor2.data_.data();
+                T* result_data = result.data_.data();
+
+                // Matrix multiplication optimizado: C = A @ B
+                // A es (rows1 x cols1), B es (cols1 x cols2), C es (rows1 x cols2)
+                for (size_t i = 0; i < rows1; i++) {
+                    for (size_t j = 0; j < cols2; j++) {
+                        T sum = T{0};
+                        for (size_t k = 0; k < cols1; k++) {
+                            sum += data1[i * cols1 + k] * data2[k * cols2 + j];
                         }
-                        idx1[Rank-2] = i;
-                        idx1[Rank-1] = k;
+                        result_data[i * cols2 + j] = sum;
+                    }
+                }
+            } else {
+                // Fallback para tensores de mayor rango (menos comun)
+                for (size_t i = 0; i < rows1; i++) {
+                    for (size_t j = 0; j < cols2; j++) {
+                        T sum = T{};
+                        for (size_t k = 0; k < cols1; k++) {
+                            array<size_t, Rank> idx1;
+                            for (size_t d = 0; d < Rank - 2; d++) {
+                                idx1[d] = batch_indices[d];
+                            }
+                            idx1[Rank-2] = i;
+                            idx1[Rank-1] = k;
 
-                        array<size_t, Rank> idx2;
-
-                        for (size_t d = 0; d < Rank - 2; d++) {
-
-                            idx2[d] = batch_indices[d];
-
+                            array<size_t, Rank> idx2;
+                            for (size_t d = 0; d < Rank - 2; d++) {
+                                idx2[d] = batch_indices[d];
+                            }
+                            idx2[Rank-2] = k;
+                            idx2[Rank-1] = j;
+                            sum += tensor1.data_[tensor1.get_linear_index(idx1)] *
+                                   tensor2.data_[tensor2.get_linear_index(idx2)];
                         }
-                        idx2[Rank-2] = k;
-                        idx2[Rank-1] = j;
-                        sum += tensor1.data_[tensor1.get_linear_index(idx1)] *
-                               tensor2.data_[tensor2.get_linear_index(idx2)];
+                        array<size_t, Rank> result_idx;
+                        for (size_t d = 0; d < Rank - 2; d++) {
+                            result_idx[d] = batch_indices[d];
+                        }
+                        result_idx[Rank-2] = i;
+                        result_idx[Rank-1] = j;
+                        result.data_[result.get_linear_index(result_idx)] = sum;
                     }
-                    array<size_t, Rank> result_idx;
-                    for (size_t d = 0; d < Rank - 2; d++) {
-                        result_idx[d] = batch_indices[d];
-                    }
-                    result_idx[Rank-2] = i;
-                    result_idx[Rank-1] = j;
-                    result.data_[result.get_linear_index(result_idx)] = sum;
                 }
             }
         }

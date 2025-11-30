@@ -8,6 +8,8 @@
 #include "nn_interfaces.h"
 #include <random>
 #include <cmath>
+#include <fstream>
+#include <iostream>
 
 namespace utec::neural_network {
 
@@ -149,6 +151,105 @@ namespace utec::neural_network {
         void update_params(IOptimizer<T>& optimizer) override {
             optimizer.update(W, dW);
             optimizer.update(b, db);
+        }
+
+        /**
+         * Save weights and biases to files
+         * @param weights_file Path to save weights
+         * @param biases_file Path to save biases
+         */
+        void save_weights(const std::string& weights_file, const std::string& biases_file) const {
+            // Save weights
+            std::ofstream wfile(weights_file);
+            if (!wfile.is_open()) {
+                throw std::runtime_error("Cannot open file for writing: " + weights_file);
+            }
+
+            const size_t in_features = W.shape()[0];
+            const size_t out_features = W.shape()[1];
+
+            wfile << in_features << " " << out_features << "\n";
+            for (size_t i = 0; i < in_features; ++i) {
+                for (size_t j = 0; j < out_features; ++j) {
+                    wfile << W(i, j);
+                    if (j < out_features - 1) wfile << " ";
+                }
+                wfile << "\n";
+            }
+            wfile.close();
+
+            // Save biases
+            std::ofstream bfile(biases_file);
+            if (!bfile.is_open()) {
+                throw std::runtime_error("Cannot open file for writing: " + biases_file);
+            }
+
+            bfile << out_features << "\n";
+            for (size_t j = 0; j < out_features; ++j) {
+                bfile << b(0, j);
+                if (j < out_features - 1) bfile << " ";
+            }
+            bfile << "\n";
+            bfile.close();
+        }
+
+        /**
+         * Load weights and biases from files
+         * @param weights_file Path to load weights from
+         * @param biases_file Path to load biases from
+         */
+        void load_weights(const std::string& weights_file, const std::string& biases_file) {
+            // Load weights
+            std::ifstream wfile(weights_file);
+            if (!wfile.is_open()) {
+                throw std::runtime_error("Cannot open file for reading: " + weights_file);
+            }
+
+            size_t in_features, out_features;
+            wfile >> in_features >> out_features;
+
+            if (W.shape()[0] != in_features || W.shape()[1] != out_features) {
+                throw std::runtime_error("Weight dimensions mismatch");
+            }
+
+            for (size_t i = 0; i < in_features; ++i) {
+                for (size_t j = 0; j < out_features; ++j) {
+                    wfile >> W(i, j);
+                }
+            }
+            wfile.close();
+
+            // Load biases
+            std::ifstream bfile(biases_file);
+            if (!bfile.is_open()) {
+                throw std::runtime_error("Cannot open file for reading: " + biases_file);
+            }
+
+            size_t bias_size;
+            bfile >> bias_size;
+
+            if (b.shape()[1] != bias_size) {
+                throw std::runtime_error("Bias dimensions mismatch");
+            }
+
+            for (size_t j = 0; j < bias_size; ++j) {
+                bfile >> b(0, j);
+            }
+            bfile.close();
+        }
+
+        /**
+         * Get weights tensor (for inspection/saving)
+         */
+        const Tensor2& get_weights() const {
+            return W;
+        }
+
+        /**
+         * Get biases tensor (for inspection/saving)
+         */
+        const Tensor2& get_biases() const {
+            return b;
         }
     };
 

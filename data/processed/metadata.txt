@@ -1,0 +1,14 @@
+Medical MNIST Dataset
+=====================
+
+Total images: 58954
+Train images: 47163
+Test images: 11791
+
+Classes:
+  0: AbdomenCT
+  1: BreastMRI
+  2: ChestCT
+  3: CXR
+  4: Hand
+  5: HeadCT
