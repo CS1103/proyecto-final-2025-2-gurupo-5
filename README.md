@@ -148,21 +148,56 @@ Implementación de un framework completo de redes neuronales en C++ para clasifi
 
 ### 4. Análisis del rendimiento
 
-- **Métricas de ejemplo**:
+#### 4.1 Resultados Generales
 
-  - Iteraciones: 1000 épocas.
-  - Tiempo total de entrenamiento: 2m30s.
-  - Precisión final: 92.5%.
+- **Dataset**: Medical MNIST (58,954 imágenes).
+- **Arquitectura**: MLP (4096 -> 256 -> 128 -> 6).
+- **Tiempo de entrenamiento**: 184 minutos.
+- **Test Accuracy**: **86.12%** (11,791 muestras evaluadas).
+- **Muestras Correctas**: 10,154.
+- **Muestras Incorrectas**: 1,637.
+- **Eficiencia Computacional**:
+  - **Latencia promedio**: 2.50 ms/imagen.
+  - **Throughput**: 400 imágenes/segundo.
 
-- **Ventajas/Desventajas**:
+#### 4.2 Métricas Detalladas
 
-  - - Código ligero y dependencias mínimas.
-  - – Sin paralelización, rendimiento limitado.
+Se implementó un sistema de evaluación que genera automáticamente métricas clave, exportadas a `evaluation_results.txt`.
 
-- **Mejoras futuras**:
+**Matriz de Confusión:**
 
-  - Uso de BLAS para multiplicaciones (Justificación).
-  - Paralelizar entrenamiento por lotes (Justificación).
+```text
+Formato: Filas = Clase Real, Columnas = Clase Predicha
+
+              AbdomenC  BreastMR   ChestCT       CXR      Hand    HeadCT
+   AbdomenCT       482         0      1444         0         0         1
+   BreastMRI         0      1799         0         0         0         0
+     ChestCT         0         0      1985         0         0         0
+         CXR         0         0         5      2055         2         2
+        Hand         1         2        18        29      1932        17
+      HeadCT         0         0        40         0        76      1901
+```
+
+**Métricas por Clase:**
+
+```text
+       Clase   Precision      Recall    F1-Score
+------------------------------------------------
+   AbdomenCT      99.79%      25.01%      40.00%
+   BreastMRI      99.89%     100.00%      99.94%
+     ChestCT      56.84%     100.00%      72.48%
+         CXR      98.61%      99.56%      99.08%
+        Hand      96.12%      96.65%      96.38%
+      HeadCT      98.96%      94.25%      96.55%
+```
+
+#### 4.3 Discusión de Resultados
+
+El modelo demuestra un rendimiento excelente en la mayoría de las clases, destacando particularmente en **BreastMRI** (99.94% F1) y **CXR** (99.08% F1). Sin embargo, se observa una confusión significativa entre **AbdomenCT** y **ChestCT**:
+
+1.  **Caso AbdomenCT**: Tiene un Recall muy bajo (25.01%), lo que significa que el 75% de las imágenes de AbdomenCT fueron clasificadas erróneamente, casi exclusivamente como **ChestCT** (1444 falsos positivos).
+2.  **Causa probable**: La similitud visual entre tomografías de abdomen y pecho en escala de grises de 64x64 es alta, y una red MLP simple carece de la capacidad de extracción de características espaciales finas que tendría una red convolucional (CNN).
+3.  **Eficiencia**: Con una latencia de 2.50ms, el modelo es extremadamente rápido, lo que lo hace viable para procesamiento en tiempo real en hardware modesto.
 
 ---
 

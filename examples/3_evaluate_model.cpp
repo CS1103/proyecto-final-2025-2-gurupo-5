@@ -3,6 +3,7 @@
 #include "../src/utec/nn/nn_activation.h"
 #include "../include/utec/data/medical_mnist_loader.h"
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <chrono>
 #include <cmath>
@@ -17,6 +18,8 @@ using namespace utec::data;
  *
  * Este script SOLO evalua un modelo ya entrenado.
  * No realiza entrenamiento, solo carga pesos y evalua.
+ * 
+ * Genera reporte en "evaluation_results.txt".
  */
 
 // Funcion para aplicar Softmax a logits
@@ -82,10 +85,11 @@ float calculate_accuracy(const Tensor<float, 2>& predictions, const Tensor<float
     return static_cast<float>(correct) / static_cast<float>(num_samples);
 }
 
-// Funcion para calcular matriz de confusion
-void calculate_confusion_matrix(const Tensor<float, 2>& logits,
-                                const Tensor<float, 2>& labels,
-                                const MedicalMNISTLoader& loader) {
+// Funcion para calcular y reportar metricas detalladas
+void report_metrics(const Tensor<float, 2>& logits,
+                    const Tensor<float, 2>& labels,
+                    const MedicalMNISTLoader& loader,
+                    std::ostream& out) {
     size_t num_samples = logits.shape()[0];
     size_t num_classes = 6;
 
@@ -116,32 +120,32 @@ void calculate_confusion_matrix(const Tensor<float, 2>& logits,
     }
 
     // Imprimir matriz de confusion
-    cout << "\n=== MATRIZ DE CONFUSION ===\n\n";
-    cout << "Formato: Filas = Clase Real, Columnas = Clase Predicha\n\n";
+    out << "\n=== MATRIZ DE CONFUSION ===\n\n";
+    out << "Formato: Filas = Clase Real, Columnas = Clase Predicha\n\n";
 
     // Encabezado
-    cout << setw(12) << " ";
+    out << setw(12) << " ";
     for (size_t i = 0; i < num_classes; ++i) {
-        cout << setw(10) << loader.get_class_name(i).substr(0, 8);
+        out << setw(10) << loader.get_class_name(i).substr(0, 8);
     }
-    cout << "\n";
+    out << "\n";
 
     // Filas
     for (size_t i = 0; i < num_classes; ++i) {
-        cout << setw(12) << loader.get_class_name(i).substr(0, 10);
+        out << setw(12) << loader.get_class_name(i).substr(0, 10);
         for (size_t j = 0; j < num_classes; ++j) {
-            cout << setw(10) << confusion[i][j];
+            out << setw(10) << confusion[i][j];
         }
-        cout << "\n";
+        out << "\n";
     }
 
     // Calcular precision y recall por clase
-    cout << "\n=== METRICAS POR CLASE ===\n\n";
-    cout << setw(12) << "Clase"
+    out << "\n=== METRICAS POR CLASE ===\n\n";
+    out << setw(12) << "Clase"
          << setw(12) << "Precision"
          << setw(12) << "Recall"
          << setw(12) << "F1-Score" << "\n";
-    cout << string(48, '-') << "\n";
+    out << string(48, '-') << "\n";
 
     for (size_t i = 0; i < num_classes; ++i) {
         // True Positives
@@ -163,7 +167,7 @@ void calculate_confusion_matrix(const Tensor<float, 2>& logits,
         float recall = (tp + fn > 0) ? (float)tp / (tp + fn) : 0.0f;
         float f1 = (precision + recall > 0) ? 2 * precision * recall / (precision + recall) : 0.0f;
 
-        cout << setw(12) << loader.get_class_name(i).substr(0, 10)
+        out << setw(12) << loader.get_class_name(i).substr(0, 10)
              << setw(11) << fixed << setprecision(2) << (precision * 100) << "%"
              << setw(11) << (recall * 100) << "%"
              << setw(11) << (f1 * 100) << "%\n";
@@ -221,7 +225,7 @@ int main() {
     if (!model_loaded) {
         cerr << "ERROR: No se pudo cargar el modelo.\n";
         cerr << "Asegurate de haber entrenado el modelo primero ejecutando:\n";
-        cerr << "  ./build/Release/train_medical_mnist.exe\n";
+        cerr << "  ./build/train_medical_mnist\n";
         return 1;
     }
 
@@ -237,23 +241,54 @@ int main() {
     auto test_predictions = apply_softmax(test_logits);
 
     auto end_eval = chrono::high_resolution_clock::now();
-    auto eval_time = chrono::duration_cast<chrono::seconds>(end_eval - start_eval).count();
+    
+    // Calculo de tiempos con mayor precision (microsegundos)
+    auto duration_us = chrono::duration_cast<chrono::microseconds>(end_eval - start_eval).count();
+    double duration_sec = duration_us / 1000000.0;
+    
+    // Calculo de metricas de rendimiento
+    double latency_ms = (double)duration_us / test_samples / 1000.0;
+    double throughput = test_samples / duration_sec;
 
     float test_accuracy = calculate_accuracy(test_logits, Y_test);
 
-    cout << "Evaluacion completada en " << eval_time << " segundos.\n\n";
+    // Preparar archivo de salida
+    ofstream outFile("../evaluation_results.txt");
+    if (!outFile.is_open()) {
+        cerr << "ADVERTENCIA: No se pudo crear el archivo 'evaluation_results.txt'.\n";
+    }
 
-    cout << "=== RESULTADOS FINALES ===\n";
-    cout << "Test Accuracy: " << fixed << setprecision(2)
-         << (test_accuracy * 100) << "%\n";
-    cout << "Muestras evaluadas: " << test_samples << "\n";
-    cout << "Correctas: " << (int)(test_accuracy * test_samples) << "\n";
-    cout << "Incorrectas: " << (int)((1 - test_accuracy) * test_samples) << "\n\n";
+    // Funcion helper para imprimir a consola y archivo
+    auto print_dual = [&](ostream& console, ostream& file, const string& msg) {
+        console << msg;
+        if (file.good()) file << msg;
+    };
 
-    // 5. MATRIZ DE CONFUSION
-    calculate_confusion_matrix(test_logits, Y_test, loader);
+    stringstream ss;
+    ss << "Evaluacion completada en " << fixed << setprecision(3) << duration_sec << " segundos.\n\n";
+    ss << "=== RESULTADOS FINALES ===\n";
+    ss << "Test Accuracy: " << fixed << setprecision(2) << (test_accuracy * 100) << "%\n";
+    ss << "Muestras evaluadas: " << test_samples << "\n";
+    ss << "Correctas: " << (int)(test_accuracy * test_samples) << "\n";
+    ss << "Incorrectas: " << (int)((1 - test_accuracy) * test_samples) << "\n\n";
+    
+    ss << "=== RENDIMIENTO (COMPUTACIONAL) ===\n";
+    ss << "Tiempo Total Inferencia: " << duration_sec << " s\n";
+    ss << "Latencia Promedio: " << latency_ms << " ms/imagen\n";
+    ss << "Throughput: " << (int)throughput << " imagenes/segundo\n";
+    
+    print_dual(cout, outFile, ss.str());
 
-    // 6. EJEMPLOS DE PREDICCIONES
+    // 5. MATRIZ DE CONFUSION Y METRICAS DETALLADAS
+    // Reportar a consola
+    report_metrics(test_logits, Y_test, loader, cout);
+    // Reportar a archivo
+    if (outFile.good()) {
+        report_metrics(test_logits, Y_test, loader, outFile);
+        cout << "\n[INFO] Resultados detallados guardados en 'evaluation_results.txt'\n";
+    }
+
+    // 6. EJEMPLOS DE PREDICCIONES (Solo consola)
     cout << "\n=== EJEMPLOS DE PREDICCIONES ===\n";
     cout << "Mostrando 20 predicciones aleatorias:\n\n";
 
@@ -289,6 +324,8 @@ int main() {
     }
 
     cout << "\n=== EVALUACION COMPLETADA ===\n";
+    
+    if (outFile.is_open()) outFile.close();
 
     return 0;
 }

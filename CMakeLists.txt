@@ -25,7 +25,7 @@ add_executable(train_xor examples/1_train_xor.cpp)
 # FASE 3: Programa principal
 add_executable(train_medical_mnist examples/2_train_medical_mnist.cpp)
 add_executable(evaluate_model examples/3_evaluate_model.cpp)
-# add_executable(predict_single examples/4_predict_single.cpp)
+add_executable(predict_single examples/4_predict_single.cpp)
 
 # Tests (optional)
 option(BUILD_TESTS "Build test executables" OFF)
