@@ -1,35 +1,35 @@
-Evaluacion completada en 29.439 segundos.
+Evaluacion completada en 39.759 segundos.
 
 === RESULTADOS FINALES ===
-Test Accuracy: 86.12%
+Test Accuracy: 85.73%
 Muestras evaluadas: 11791
-Correctas: 10154
-Incorrectas: 1637
+Correctas: 10108
+Incorrectas: 1682
 
 === RENDIMIENTO (COMPUTACIONAL) ===
-Tiempo Total Inferencia: 29.44 s
-Latencia Promedio: 2.50 ms/imagen
-Throughput: 400 imagenes/segundo
+Tiempo Total Inferencia: 39.76 s
+Latencia Promedio: 3.37 ms/imagen
+Throughput: 296 imagenes/segundo
 
 === MATRIZ DE CONFUSION ===
 
 Formato: Filas = Clase Real, Columnas = Clase Predicha
 
               AbdomenC  BreastMR   ChestCT       CXR      Hand    HeadCT
-   AbdomenCT       482         0      1444         0         0         1
-   BreastMRI         0      1799         0         0         0         0
-     ChestCT         0         0      1985         0         0         0
-         CXR         0         0         5      2055         2         2
-        Hand         1         2        18        29      1932        17
-      HeadCT         0         0        40         0        76      1901
+   AbdomenCT       494         0      1471         0         0         2
+   BreastMRI         0      1782         0         0         0         0
+     ChestCT         0         0      2036         0         0         0
+         CXR         0         0         5      1993         2         5
+        Hand         3         4        15        49      1942        15
+      HeadCT         0         0        34         0        78      1861
 
 === METRICAS POR CLASE ===
 
        Clase   Precision      Recall    F1-Score
 ------------------------------------------------
-   AbdomenCT      99.79%      25.01%      40.00%
-   BreastMRI      99.89%     100.00%      99.94%
-     ChestCT      56.84%     100.00%      72.48%
-         CXR      98.61%      99.56%      99.08%
-        Hand      96.12%      96.65%      96.38%
-      HeadCT      98.96%      94.25%      96.55%
+   AbdomenCT      99.40%      25.11%      40.10%
+   BreastMRI      99.78%     100.00%      99.89%
+     ChestCT      57.17%     100.00%      72.75%
+         CXR      97.60%      99.40%      98.49%
+        Hand      96.04%      95.76%      95.90%
+      HeadCT      98.83%      94.32%      96.52%
