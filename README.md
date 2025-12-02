@@ -5,7 +5,7 @@
 ## **CS2013 Programación III** · Informe Final
 
 #### --------------------------------------------------------------
-### [Ver Video Explicativo del Modelo](https://drive.google.com/file/d/1l7uWLb8BwGN-LNm7gCxbG2HgBoMNIM9A/view?usp=sharing)
+### [Ver Video Explicativo del Modelo](https://drive.google.com/file/d/15bL10KMTnmroiDwyxgu8lXwRkyecNhgs/view?usp=sharing)
 #### --------------------------------------------------------------
 
 ### **Descripción**
