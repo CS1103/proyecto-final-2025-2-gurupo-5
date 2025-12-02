@@ -4,6 +4,10 @@
 
 ## **CS2013 Programación III** · Informe Final
 
+#### --------------------------------------------------------------
+### [Ver Video Explicativo del Modelo](https://drive.google.com/file/d/1l7uWLb8BwGN-LNm7gCxbG2HgBoMNIM9A/view?usp=sharing)
+#### --------------------------------------------------------------
+
 ### **Descripción**
 
 Implementación de un framework completo de redes neuronales en C++ para clasificación de imágenes médicas (Medical MNIST).
